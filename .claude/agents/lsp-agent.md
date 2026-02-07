@@ -89,13 +89,6 @@ When you do need the project map, detect the project type and run the appropriat
 - `Glob`: `**/package.json`, `**/tsconfig.json`
 - `Bash`: `jq '.dependencies, .devDependencies' package.json`
 
-### Go
-- `Glob`: `**/go.mod`, `**/go.sum`
-- `Bash`: `go list ./...`
-
-### Java / Kotlin
-- `Glob`: `**/pom.xml`, `**/build.gradle`, `**/build.gradle.kts`
-
 Do NOT rely on hardcoded module lists — always discover the current state.
 
 ## Navigation Strategy
