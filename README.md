@@ -195,6 +195,28 @@ Claude Code supports the Language Server Protocol (LSP) via **plugins**, giving 
 
 3. **Verify** by asking Claude to use LSP operations on your Rust code.
 
+### Verifying Your Plugin Installation
+
+Plugin configuration is stored under `~/.claude/plugins/`:
+
+| File | What It Tells You |
+|------|-------------------|
+| `installed_plugins.json` | Which plugins are installed, their version and install path |
+| `known_marketplaces.json` | Which marketplaces have been registered |
+| `config.json` | Plugin repository configuration |
+
+Check which plugins are installed:
+```bash
+cat ~/.claude/plugins/installed_plugins.json
+```
+
+Check which plugins are enabled (active):
+```bash
+cat ~/.claude/settings.json
+```
+
+The `enabledPlugins` key in `~/.claude/settings.json` (global) or `.claude/settings.local.json` (project) controls which installed plugins Claude Code actually loads. A plugin can be installed but not enabled.
+
 ### How It Works
 
 LSP plugins configure an `.lsp.json` that tells Claude Code how to connect to a language server:
