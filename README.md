@@ -170,6 +170,20 @@ my-skill/
 
 Reference supporting files from SKILL.md so Claude knows when to load them. Keep references **one level deep** — avoid chains of files referencing other files.
 
+### Configuration Scope
+
+Skills and agents can be defined at multiple levels. Higher-priority levels win when names collide.
+
+| Level | Skills Path | Agents Path | Scope |
+|-------|-------------|-------------|-------|
+| Enterprise | Managed settings | Managed settings | All users in org |
+| Personal | `~/.claude/skills/<name>/SKILL.md` | `~/.claude/agents/<name>.md` | All your projects |
+| Project | `.claude/skills/<name>/SKILL.md` | `.claude/agents/<name>.md` | This project only |
+
+**Priority:** enterprise > personal > project
+
+This project uses project-level configuration (`.claude/skills/` and `.claude/agents/`), which is the right choice for a shared reference repo. For personal skills and agents you use across all projects, place them in `~/.claude/` instead — the directory is created on first use.
+
 ## LSP Integration
 
 Claude Code supports the Language Server Protocol (LSP) via **plugins**, giving Claude real-time code intelligence: diagnostics, go-to-definition, find-references, and hover information.
