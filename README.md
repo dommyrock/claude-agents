@@ -183,10 +183,15 @@ Claude Code supports the Language Server Protocol (LSP) via **plugins**, giving 
 
 2. **Install the LSP plugin** (inside Claude Code):
    ```
+   /plugin install rust-analyzer-lsp@claude-plugins-official
+   ```
+
+   Or from the community marketplace ([Piebald-AI](https://github.com/Piebald-AI)):
+   ```
    /plugin install rust-lsp@claude-code-lsps
    ```
 
-   `claude-code-lsps` is a community marketplace ([Piebald-AI](https://github.com/Piebald-AI)), not an official Anthropic product. Other community marketplaces may also provide LSP plugins — check the `/plugin` Discover tab.
+   Other community marketplaces may also provide LSP plugins — check the `/plugin` Discover tab.
 
 3. **Verify** by asking Claude to use LSP operations on your Rust code.
 
@@ -234,9 +239,9 @@ You can also access language servers through MCP (Model Context Protocol) instea
 
 | Plugin | Language Server | Install Binary |
 |--------|----------------|----------------|
-| `rust-lsp` | rust-analyzer | `rustup component add rust-analyzer` |
-| `typescript-lsp` | TypeScript Language Server | `npm install -g typescript-language-server typescript` |
-| `pyright-lsp` | Pyright | `pip install pyright` or `npm install -g pyright` |
+| `rust-analyzer-lsp@claude-plugins-official` | rust-analyzer | `rustup component add rust-analyzer` |
+| `typescript-lsp@claude-plugins-official` | TypeScript Language Server | `npm install -g typescript-language-server typescript` |
+| `pyright-lsp@claude-plugins-official` | Pyright | `pip install pyright` or `npm install -g pyright` |
 
 For languages not covered by existing plugins, create your own with an `.lsp.json` file. See the [Plugins reference](https://code.claude.com/docs/en/plugins-reference#lsp-servers).
 
