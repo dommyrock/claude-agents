@@ -7,10 +7,9 @@ A reference project demonstrating the correct architecture for extending Claude 
 ```
 .claude/
 ├── agents/
-│   └── rust-reviewer.md              # Subagent: isolated code review
+│   ├── lsp-navigator.md              # Agent: LSP-powered code navigation
+│   └── rust-reviewer.md              # Agent: isolated code review
 └── skills/
-    ├── code-navigator/
-    │   └── SKILL.md                  # Skill: navigation strategies
     └── rust-macros/
         ├── SKILL.md                  # Skill: macro design guidance
         ├── declarative-patterns.md   # Reference: TT munching, push-down, etc.
@@ -187,7 +186,7 @@ Claude Code supports the Language Server Protocol (LSP) via **plugins**, giving 
    /plugin install rust-lsp@claude-code-lsps
    ```
 
-   Multiple community marketplaces provide LSP plugins. Check the `/plugin` Discover tab for available options.
+   `claude-code-lsps` is a community marketplace ([Piebald-AI](https://github.com/Piebald-AI)), not an official Anthropic product. Other community marketplaces may also provide LSP plugins — check the `/plugin` Discover tab.
 
 3. **Verify** by asking Claude to use LSP operations on your Rust code.
 
@@ -246,11 +245,11 @@ For languages not covered by existing plugins, create your own with an `.lsp.jso
 ### `rust-macros` (Skill)
 Domain knowledge for Rust macro design. Uses progressive disclosure: concise SKILL.md (~118 lines) with four reference files for detailed coverage. Claude loads the overview when macros come up, and drills into specific reference files only when needed.
 
-### `code-navigator` (Skill)
-Navigation strategies using Grep, Glob, Read, and Bash. Provides structured decision trees for common code exploration questions. Runs inline so it can guide the main agent's tool usage.
+### `lsp-navigator` (Agent)
+Lightweight code navigation worker that prefers LSP operations over text search. Runs on Haiku for cost efficiency. Demonstrates how to give an agent LSP tool access and encode LSP-specific strategies (blind spots, locate-then-query workflow) without duplicating knowledge Claude already has.
 
 ### `rust-reviewer` (Agent)
-Isolated code review worker. Runs in its own context to keep review details out of the main conversation. Uses Sonnet model, read-only tools plus Bash, and preloads the `rust-macros` skill for macro-aware reviews.
+Isolated code review worker. Runs in its own context to keep review details out of the main conversation. Uses Sonnet model with Glob, Grep, Read, and Bash tools. Preloads the `rust-macros` skill for macro-aware reviews.
 
 ## Resources
 
