@@ -1,266 +1,262 @@
-# Claude Skills vs Agents
+# Claude Code: Skills, Agents, and Plugins
 
-## When to Use Agents (Subagents)
+A reference project demonstrating the correct architecture for extending Claude Code with custom skills, agents, and LSP integration.
 
-Agents are for **parallel execution and context isolation**, not strategic guidance. Here are the real use cases:
-
-### 1. **Parallel Task Execution** ⚡
-
-Running multiple independent tasks **simultaneously**:
+## Directory Structure
 
 ```
-User: "Review all 5 modules in parallel - check security, performance, 
-      and test coverage for each"
+.claude/
+├── agents/
+│   └── rust-reviewer.md              # Subagent: isolated code review
+└── skills/
+    ├── code-navigator/
+    │   └── SKILL.md                  # Skill: navigation strategies
+    └── rust-macros/
+        ├── SKILL.md                  # Skill: macro design guidance
+        ├── declarative-patterns.md   # Reference: TT munching, push-down, etc.
+        ├── fragment-reference.md     # Reference: specifiers, follow-set rules
+        ├── procedural-guide.md       # Reference: proc-macro pipeline, nine rules
+        └── resources.md              # Reference: crates and learning links
+```
+
+## Skills vs Agents
+
+Skills and agents serve fundamentally different purposes. Choosing wrong wastes tokens, context, or money.
+
+### Skills = Knowledge Injection
+
+Skills are **reusable instruction sets** that load into the main conversation when relevant. They teach Claude *how* to approach a task — conventions, patterns, decision frameworks.
+
+```
+User: "Help me write a proc-macro for this struct"
 
 Main Claude:
-  → Spawns 5 review agents in parallel
-  → Each runs independently with isolated context
-  → All complete simultaneously
-  → Main agent aggregates results
+  → Loads rust-macros skill (triggered by description match)
+  → Skill content enters the main context window
+  → Claude applies the guidance while working in your conversation
+  → Full access to conversation history and all tools
 ```
 
-**Why agent not skill:**
-- Need 5 separate contexts running at once
-- Each agent processes different module
-- Results come back in parallel (much faster)
+**Use a skill when:**
+- Providing domain knowledge or conventions
+- Teaching strategies the main agent should follow inline
+- The guidance needs access to conversation context
+- You want Claude to apply it while working alongside you
 
-### 2. **Cost Optimization** 💰
+**Key properties:**
+- Runs **inline** in the main conversation (unless `context: fork` is set)
+- Loaded **on-demand** when the description matches the task
+- Only metadata (name + description) costs tokens at startup
+- Full content loads only when triggered (~5k tokens)
+- Can bundle reference files for progressive disclosure
 
-Using cheaper models for simple, repetitive tasks:
+### Agents (Subagents) = Isolated Workers
 
-```yaml
----
-name: code-formatter
-tools: Read, Write, Edit
-model: haiku  # ← Cheap! ~$0.25 per million tokens vs $3 for Sonnet
----
-
-Format all code files according to style guide.
-```
-
-**Why agent not skill:**
-- Haiku is 10x cheaper than Sonnet
-- Formatting doesn't need Sonnet's intelligence
-- Can spawn many Haiku agents for batch operations
-- Main agent (Sonnet) orchestrates
-
-**Example:**
-```
-User: "Format all 50 Python files in this repo"
-
-Main Claude (Sonnet):
-  → Identifies all files
-  → Spawns 10 Haiku formatter agents in parallel
-  → Each formats 5 files
-  → Cost: ~$0.10 instead of $1.00
-```
-
-### 3. **Context Isolation** 🔒
-
-Keeping exploratory work separate from main conversation:
+Agents are **specialized sub-processes** that run in their own context window with their own system prompt, tool access, and permissions. They work independently and return a summary.
 
 ```
-User: "Explore this legacy codebase and figure out how auth works"
+User: "Review the authentication module"
 
 Main Claude:
-  → Spawns Explore agent
-  → Agent digs through 100+ files
-  → Agent's context fills up with exploration details
-  → Returns summary to main agent
-  → Main agent's context stays clean!
+  → Delegates to rust-reviewer agent
+  → Agent runs in separate context (doesn't pollute main conversation)
+  → Agent reads 50+ files, builds detailed analysis
+  → Returns summary to main conversation
+  → Main context stays clean
 ```
 
-**Why agent not skill:**
-- Don't want main context polluted with exploration details
-- Exploration might require reading 50+ files
-- Main agent only needs the summary
-- Can throw away agent's context after
+**Use an agent when:**
+- The task produces verbose output you don't need in main context
+- You want to run multiple tasks in parallel
+- You need to enforce tool restrictions (e.g., read-only)
+- You want to use a cheaper/faster model for routine work
+- The work is self-contained and can return a summary
 
-### 4. **Enforcing Security Constraints** 🛡️
+**Key properties:**
+- Runs in **isolated context** — separate from main conversation
+- Has its own **system prompt** (the markdown body)
+- Can restrict **tools** (e.g., read-only agents)
+- Can use a different **model** (Haiku for cheap tasks, Sonnet for complex ones)
+- Can **preload skills** via the `skills` frontmatter field
+- Cannot spawn other subagents (no nesting)
 
-Limiting tool access for dangerous operations:
+### Decision Matrix
+
+| Need | Skill | Agent |
+|------|-------|-------|
+| Domain knowledge / conventions | Yes | |
+| Strategic guidance for main agent | Yes | |
+| Runs inline with conversation context | Yes | |
+| Parallel task execution | | Yes |
+| Context isolation (keep main clean) | | Yes |
+| Cost optimization (cheaper model) | | Yes |
+| Tool restrictions (read-only, no bash) | | Yes |
+| Self-contained one-shot task | | Yes |
+| Continuous back-and-forth needed | Yes | |
+
+### Combining Skills and Agents
+
+Skills and agents work together. An agent can preload skills to get domain knowledge within its isolated context:
 
 ```yaml
----
-name: sql-query-runner
-tools: Read  # ← ONLY Read, no Write/Edit/Bash
-model: sonnet
----
-
-Execute SQL queries from user, but:
-- Read-only access
-- No file modifications
-- No shell commands
-- No web access
-```
-
-**Why agent not skill:**
-- Hard constraint on available tools
-- Can't accidentally modify files
-- Can't run dangerous commands
-- Security boundary enforced by system
-
-### 5. **Built-in Agents** 🏗️
-
-Claude Code has built-in agents you use constantly:
-
-```
-Explore Agent:
-  - Read-only tools (Read, Grep, Glob)
-  - Fast codebase exploration
-  - Doesn't clutter main context
-  
-Plan Agent:
-  - Creates implementation plans
-  - Separate planning context
-  - Main agent executes the plan
-```
-
-## Real-World Example: When Each Makes Sense
-
-### Scenario: Code Review System
-
-```yaml
-# ✅ USE SKILL: Strategic guidance
+# .claude/agents/rust-reviewer.md
 ---
 name: rust-reviewer
-description: Expert Rust code review strategies...
+skills:
+  - rust-macros    # Preloaded: full skill content injected at startup
 ---
-
-Teaches main agent:
-- What to look for in Rust code
-- Common anti-patterns
-- Best practices
-- Review structure
-
-# ✅ USE AGENT: Parallel execution
----
-name: module-reviewer
-tools: Read, Grep, Glob
-model: haiku  # Cheap!
----
-
-Reviews a single module in isolation.
-Spawned in parallel for multiple modules.
 ```
 
-**Usage:**
+This means the rust-reviewer agent has macro expertise without the main conversation loading that content. The skill content is injected into the agent's context, not just made available for invocation.
+
+## Configuration Reference
+
+### Skill Frontmatter (SKILL.md)
+
+All fields are optional. Only `description` is recommended.
+
+| Field | Purpose |
+|-------|---------|
+| `name` | Display name (defaults to directory name). Lowercase, hyphens, max 64 chars |
+| `description` | What the skill does and when to use it. **Write in third person.** Max 1024 chars |
+| `disable-model-invocation` | `true` = only user can invoke via `/name`. Default: `false` |
+| `user-invocable` | `false` = hidden from `/` menu, only Claude can load it. Default: `true` |
+| `allowed-tools` | Tool allowlist when skill is active (e.g., `Read, Grep, Glob`) |
+| `model` | Model override when skill is active |
+| `context` | `fork` = run in a subagent instead of inline |
+| `agent` | Which agent type to use when `context: fork` (e.g., `Explore`, `Plan`) |
+
+### Agent Frontmatter (.md files)
+
+`name` and `description` are required.
+
+| Field | Required | Purpose |
+|-------|----------|---------|
+| `name` | Yes | Unique identifier (lowercase, hyphens) |
+| `description` | Yes | When Claude should delegate. **Write in third person** |
+| `tools` | No | Tool allowlist. Inherits all if omitted |
+| `disallowedTools` | No | Tool denylist |
+| `model` | No | `sonnet`, `opus`, `haiku`, or `inherit` (default) |
+| `skills` | No | Skills to preload into agent context at startup |
+| `permissionMode` | No | `default`, `acceptEdits`, `dontAsk`, `bypassPermissions`, `plan` |
+| `maxTurns` | No | Max agentic turns before stopping |
+| `mcpServers` | No | MCP servers available to this agent |
+| `hooks` | No | Lifecycle hooks scoped to this agent |
+| `memory` | No | Persistent memory: `user`, `project`, or `local` |
+| `color` | No | UI background color for identification |
+
+### Description Best Practices
+
+From the official docs:
+
+- **Always write in third person.** The description is injected into the system prompt.
+  - Good: `"Reviews Rust code for safety and best practices"`
+  - Bad: `"Use this when you need to review Rust code"`
+- **Be specific and include trigger keywords** so Claude picks the right skill/agent
+- **Include both what it does and when to use it**
+- Max 1024 characters for skills
+
+### Progressive Disclosure for Skills
+
+Keep `SKILL.md` under 500 lines. Move detailed reference material to separate files:
+
 ```
-User: "Review all 10 modules in the workspace"
-
-Main Claude (using rust-reviewer skill):
-  1. Loads rust-reviewer skill for strategy
-  2. Identifies all 10 modules
-  3. Spawns 10 module-reviewer agents (Haiku, parallel)
-  4. Each agent reviews one module independently
-  5. Collects all reviews
-  6. Synthesizes findings using rust-reviewer guidance
-  7. Presents consolidated report
-```
-
-**Cost & Speed:**
-- Without agents: 10 minutes, $2.00 (sequential Sonnet)
-- With agents: 2 minutes, $0.50 (parallel Haiku)
-
-## Decision Matrix
-
-| Use Case | Use Skill | Use Agent |
-|----------|-----------|-----------|
-| Teach strategies | ✅ | ❌ |
-| Provide domain knowledge | ✅ | ❌ |
-| Reusable patterns | ✅ | ❌ |
-| Run tasks in parallel | ❌ | ✅ |
-| Keep context clean | ❌ | ✅ |
-| Use cheaper model | ❌ | ✅ |
-| Enforce tool restrictions | ❌ | ✅ |
-| Need continuous conversation | ✅ | ❌ |
-| One-shot independent task | ❌ | ✅ |
-
-## Your Rust Agents: Should They Be Agents or Skills?
-
-Let's evaluate what you had:
-
-### ✅ rust-reviewer.md → **SKILL** (Correct!)
-**Why:**
-- Teaches review strategies
-- Main agent needs this guidance
-- No need for isolation
-- Not for parallel execution
-- Should be available continuously
-
-### ✅ rust-macros.md → **SKILL** (Correct!)
-**Why:**
-- Domain expertise about macros
-- Reference material
-- Main agent needs this when working with macros
-- Not a task to run in isolation
-
-### ❓ lsp-navigator.md → **SKILL** (I converted it)
-**Why:**
-- Strategic navigation guidance
-- Main agent needs LSP access
-- Not for parallel execution
-- Continuous code exploration
-
-**HOWEVER**, you COULD have both:
-
-```yaml
-# SKILL: Strategic guidance
-~/.claude/skills/lsp-navigation/SKILL.md
-  → Teaches when/how to use LSP
-  → Available to main agent always
-
-# AGENT: Parallel deep-dive research (optional)
-~/.claude/agents/code-researcher.md
----
-name: code-researcher
-tools: Read, Grep, Glob  # No Write
-model: haiku  # Cheap for research
----
-Deep research into codebase structure.
-Used when spawning multiple parallel research agents.
+my-skill/
+├── SKILL.md           # Overview + decision frameworks (~100-200 lines)
+├── reference.md       # Detailed reference (loaded when needed)
+├── examples.md        # Usage examples (loaded when needed)
+└── scripts/
+    └── helper.py      # Utility script (executed, not loaded into context)
 ```
 
-**Usage:**
+Reference supporting files from SKILL.md so Claude knows when to load them. Keep references **one level deep** — avoid chains of files referencing other files.
+
+## LSP Integration
+
+Claude Code supports the Language Server Protocol (LSP) via **plugins**, giving Claude real-time code intelligence: diagnostics, go-to-definition, find-references, and hover information.
+
+### Setup for Rust
+
+1. **Install rust-analyzer:**
+   ```bash
+   rustup component add rust-analyzer
+   ```
+
+2. **Install the LSP plugin** (inside Claude Code):
+   ```
+   /plugin install rust-lsp@claude-code-lsps
+   ```
+
+   Multiple community marketplaces provide LSP plugins. Check the `/plugin` Discover tab for available options.
+
+3. **Verify** by asking Claude to use LSP operations on your Rust code.
+
+### How It Works
+
+LSP plugins configure an `.lsp.json` that tells Claude Code how to connect to a language server:
+
+```json
+{
+  "rust": {
+    "command": "rust-analyzer",
+    "extensionToLanguage": {
+      ".rs": "rust"
+    }
+  }
+}
 ```
-User: "Research how authentication, logging, and database 
-      access work in this codebase"
 
-Main Claude (using lsp-navigation skill):
-  1. Spawns 3 code-researcher agents (Haiku, parallel)
-     - Agent 1: Authentication research
-     - Agent 2: Logging research  
-     - Agent 3: Database research
-  2. Each digs deep independently
-  3. Main agent synthesizes findings
-  4. Presents consolidated architecture overview
-```
+The language server binary must be installed separately — plugins only configure the connection.
 
-## The Golden Rule
+### LSP Operations Available
 
-**Skills = Teaching**
-- "Here's HOW to do X"
-- "Here's WHEN to do Y"
-- Available continuously to main agent
+| Operation | What It Does |
+|-----------|-------------|
+| `goToDefinition` | Jump to where a symbol is defined |
+| `findReferences` | Find every usage of a symbol |
+| `hover` | Get type signatures and documentation |
+| `documentSymbol` | List all symbols in a file |
+| `goToImplementation` | Find trait/interface implementations |
+| `diagnostics` | Real-time errors and warnings after edits |
 
-**Agents = Doing**
-- "Go DO this specific task"
-- "Run in parallel"
-- "Keep context separate"
-- Often cheaper/faster
+### LSP Access from Skills and Agents
 
-## Summary
+**Main conversation (skills running inline):** Full LSP access. Skills that run in the main context can use LSP operations directly because they share the main agent's tool set.
 
-Agents aren't "worse" - they're **different tools for different jobs**:
+**Subagents:** Subagents inherit tools from the parent conversation by default, including LSP tools provided by plugins. However, if an agent restricts its `tools` field, LSP tools may not be included unless explicitly allowed.
 
-- **Limitation (subset of tools)** = **Feature for safety/cost**
-- **Context isolation** = **Feature for keeping main context clean**
-- **Separate execution** = **Feature for parallelization**
+**Recommendation:** For code navigation skills that need LSP, run them inline (default) rather than in a forked context. If you need LSP in an agent, don't restrict the `tools` field or ensure LSP tools are included.
 
-You don't use agents much in simple workflows, but they're critical for:
-1. Large-scale operations (review 100 files)
-2. Parallel execution (speed)
-3. Cost optimization (Haiku vs Sonnet)
-4. Security boundaries (read-only access)
+### Alternative: MCP-Based LSP
 
-For your LSP navigation case: **Skill is correct** because you want strategic guidance available to the main agent, not parallel execution or isolation.
+You can also access language servers through MCP (Model Context Protocol) instead of the native LSP plugin system. Community projects like [mcp-language-server](https://github.com/isaacphi/mcp-language-server) act as a bridge between Claude and language servers. Configure in `~/.claude/settings.json` under `mcpServers`.
+
+### Available LSP Plugins
+
+| Plugin | Language Server | Install Binary |
+|--------|----------------|----------------|
+| `rust-lsp` | rust-analyzer | `rustup component add rust-analyzer` |
+| `typescript-lsp` | TypeScript Language Server | `npm install -g typescript-language-server typescript` |
+| `pyright-lsp` | Pyright | `pip install pyright` or `npm install -g pyright` |
+
+For languages not covered by existing plugins, create your own with an `.lsp.json` file. See the [Plugins reference](https://code.claude.com/docs/en/plugins-reference#lsp-servers).
+
+## What This Project Demonstrates
+
+### `rust-macros` (Skill)
+Domain knowledge for Rust macro design. Uses progressive disclosure: concise SKILL.md (~118 lines) with four reference files for detailed coverage. Claude loads the overview when macros come up, and drills into specific reference files only when needed.
+
+### `code-navigator` (Skill)
+Navigation strategies using Grep, Glob, Read, and Bash. Provides structured decision trees for common code exploration questions. Runs inline so it can guide the main agent's tool usage.
+
+### `rust-reviewer` (Agent)
+Isolated code review worker. Runs in its own context to keep review details out of the main conversation. Uses Sonnet model, read-only tools plus Bash, and preloads the `rust-macros` skill for macro-aware reviews.
+
+## Resources
+
+- [Skills documentation](https://code.claude.com/docs/en/skills)
+- [Subagents documentation](https://code.claude.com/docs/en/sub-agents)
+- [Plugins documentation](https://code.claude.com/docs/en/plugins)
+- [Plugins reference](https://code.claude.com/docs/en/plugins-reference)
+- [Skills best practices](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices)
+- [Skills overview](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview)
