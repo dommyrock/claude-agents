@@ -1,5 +1,7 @@
 # Claude Code: Skills, Agents, and Plugins
 
+<img width="1149" height="445" alt="image" src="https://github.com/user-attachments/assets/ed815941-ff1c-4442-a923-af2580fb0c61" />
+
 A reference project demonstrating the correct architecture for extending Claude Code with custom skills, agents, and LSP integration.
 
 ## Directory Structure
