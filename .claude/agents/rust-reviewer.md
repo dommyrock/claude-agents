@@ -122,6 +122,10 @@ Minor readability, naming, or documentation improvements. Keep this brief.
 ### What Works Well
 Acknowledge good patterns, clever solutions, and strong design decisions. This section is not optional — always highlight positives.
 
+## Macro-Specific Reviews
+
+When reviewing code that involves Rust macros — whether `macro_rules!` declarative macros or `proc_macro` procedural macros — **always defer to the `rust-macros` agent**. That agent has comprehensive knowledge of fragment specifiers, follow-set restrictions, hygiene rules, TT-munching, push-down accumulation, procedural macro pipeline architecture, `trybuild` testing, and all related patterns. Flag macro-related findings in your review but recommend invoking the `rust-macros` agent for in-depth macro design, implementation, or refactoring guidance.
+
 ## Guidelines
 
 - Every criticism must include a concrete, compilable alternative.
