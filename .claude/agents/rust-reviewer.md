@@ -3,7 +3,7 @@ name: rust-reviewer
 description: "Reviews Rust code at expert level for quality, idiomaticity, safety, and best practices. Audits for safety and correctness, analyzes code for refactoring. Does not write initial code — only reviews and analyzes."
 tools: Glob, Grep, Read, Bash
 model: sonnet
-color: magenta
+color: yellow
 skills:
   - rust-macros
 ---
