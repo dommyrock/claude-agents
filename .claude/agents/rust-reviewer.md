@@ -1,7 +1,7 @@
 ---
 name: rust-reviewer
-description: "Use this skill when you need expert-level review of Rust code for quality, idiomaticity, safety, and best practices. Trigger this skill after completing a logical unit of Rust code (function, module, feature implementation) or when refactoring existing Rust code."
-tools: Glob, Grep, Read, WebFetch, TodoWrite, WebSearch
+description: "Use this agent when you need expert-level review of Rust code for quality, idiomaticity, safety, and best practices. Invoke this agent when: (1) reviewing completed Rust code for production readiness, (2) auditing Rust code for safety and correctness, (3) refactoring existing Rust code, or (4) when explicitly asked to review Rust code. Do NOT use for initial code writing or implementation - only for review and analysis."
+tools: Glob, Grep, Read, WebFetch, WebSearch, Bash
 model: sonnet
 color: magenta
 ---
